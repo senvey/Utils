@@ -17,7 +17,7 @@ REQUEST = 'http://orangecounty.craigslist.org/search/cto?query=%s&srchType=T&min
 TARGETS = {'honda': ('accord', 'civic'), 'toyota': ('camry', 'corolla')}
 SHORTCUTS = ('salvage', 'stick', 'manual', 'coupe')
 PRICE = (4000, 8000)
-MILEAGE = (1000, 150000)
+MILEAGE = (1000, 130000)
 
 def cars(make, month=None, day=None):
     conn = httplib.HTTPConnection(HOST)
@@ -28,7 +28,7 @@ def cars(make, month=None, day=None):
     _, cur_month, cur_day, _, _ = time.ctime().split()
     if not month: month = cur_month
     if not day: day = cur_day
-    pattern = '%s %s - <a href="(?P<url>[\w:/.]+)">(?P<title>[^\n]+)' % (month, day)
+    pattern = '%s\s+%s - <a href="(?P<url>[\w:/.]+)">(?P<title>[^\n]+)' % (month, day)
     prog = re.compile(pattern)
     
     m = prog.search(t)
@@ -38,7 +38,7 @@ def cars(make, month=None, day=None):
         index = t.find(url) # do not use title in case two titles are identical
         m = prog.search(t[index:])
         
-        # year should not less than 2003
+        # year should not be less than 2003
         if re.search('[\s>]?1\d{3}\s', title) or title.find('2000') > -1 \
             or title.find('2001') > -1 or title.find('2002') > -1: continue
 #        print url, title
@@ -49,9 +49,10 @@ def cars(make, month=None, day=None):
 
 
 def sift(desc):
+    
     # definitely do not want to buy
     for s in SHORTCUTS:
-        if desc.find(s): return False
+        if desc.find(s) > -1: return False
     
     words = desc.lower().translate(None, punctuation).split()
     
@@ -67,12 +68,18 @@ def sift(desc):
     try:
         miles = int(miles)
     except:
-        # try once with one word forward
+        # try one more time with one word forward
         miles = words[index - 2]
         miles = miles.replace(',', '').replace('x', '0').replace('k', '000')
         try:
             miles = int(miles)
-        except: return False
+        except:
+            # try one more time with one word afterward
+            miles = words[index + 1]
+            miles = miles.replace(',', '').replace('x', '0').replace('k', '000')
+            try:
+                miles = int(miles)
+            except: return False
     if miles < MILEAGE[0] or miles > MILEAGE[1]: return False
     
     return True
